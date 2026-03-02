@@ -41,8 +41,13 @@ bash scripts/codex_session.sh
 
 Resolution order:
 - `CODEX_SESSION_CMD` env var (if set)
-- `acodex` (if installed)
-- `codex` (fallback)
+- `codex` (default)
+
+`scripts/codex_session.sh` also accepts an explicit command and arguments:
+
+```bash
+bash scripts/codex_session.sh codex --help
+```
 
 ## Hook Integration
 
