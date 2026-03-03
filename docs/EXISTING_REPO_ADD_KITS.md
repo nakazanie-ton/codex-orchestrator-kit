@@ -3,11 +3,13 @@
 Use this runbook when a repository does not yet have bootstrap/taskflow kits.
 
 ## 1. One-Click Install
-From the target repository root, run:
+From the `codex-orchestrator-kit` root, run:
 
 ```bash
-bash -lc 'set -euo pipefail; tmp_dir="$(mktemp -d)"; trap '\''rm -rf "$tmp_dir"'\'' EXIT; git clone --depth 1 https://github.com/nakazanie-ton/codex-bootstrap-kit.git "$tmp_dir/bootstrap"; bash "$tmp_dir/bootstrap/bin/install.sh" --target "$PWD" --force; git clone --depth 1 https://github.com/nakazanie-ton/codex-taskflow-kit.git "$tmp_dir/taskflow"; bash "$tmp_dir/taskflow/bin/install.sh" --target "$PWD" --force; CODEX_BOOTSTRAP_REQUIRED=1 bash scripts/codex_verify_session.sh'
+bash scripts/one_click_install.sh /absolute/path/to/target-repo
 ```
+
+This installer also normalizes `.codex_bootstrap/config.json` to a project-agnostic baseline (empty `entry_points` and `task_routing`, no preselected skills).
 
 ## 2. CLI Connection
 Primary command:

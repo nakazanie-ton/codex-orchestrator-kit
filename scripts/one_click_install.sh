@@ -21,7 +21,9 @@ bash "$tmp_dir/bootstrap/bin/install.sh" --target "$TARGET" --force
 git clone --depth 1 https://github.com/nakazanie-ton/codex-taskflow-kit.git "$tmp_dir/taskflow"
 bash "$tmp_dir/taskflow/bin/install.sh" --target "$TARGET" --force
 
+bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/normalize_bootstrap_config.sh" "$TARGET"
+
 cd "$TARGET"
 CODEX_BOOTSTRAP_REQUIRED=1 bash scripts/codex_verify_session.sh
 
-echo "[orchestrator] done: both kits installed and strict verification passed"
+echo "[orchestrator] done: both kits installed, config normalized, and strict verification passed"

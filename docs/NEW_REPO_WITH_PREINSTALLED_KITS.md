@@ -7,6 +7,12 @@ Use this runbook when your repository already contains installed kit artifacts:
 - `.codex_bootstrap/`
 - `.codex_taskflow/`
 
+If `.codex_bootstrap/config.json` contains framework-specific defaults, normalize it from this repo:
+
+```bash
+bash scripts/normalize_bootstrap_config.sh /absolute/path/to/target-repo
+```
+
 ## 1. CLI Connection
 Use strict startup as the default entrypoint:
 
