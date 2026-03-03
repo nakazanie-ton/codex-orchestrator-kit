@@ -24,7 +24,7 @@ Without a standard bootstrap/taskflow layer, teams usually hit the same issues:
 ## How It Solves It
 1. Install unified kit artifacts into target repos.
 2. Bootstrap local state snapshots and checklist status before work.
-3. Auto-prime Codex sessions with a first prompt that loads `.local_codex/*` context files.
+3. Auto-prime Codex sessions with a first prompt that loads `.local_codex/*` context files and taskflow routing rules.
 4. Verify freshness/integrity gates (`status: PASS`) before session/taskflow.
 5. Generate structured task artifacts (intake -> handoff).
 6. Lint artifacts (`scaffold`/`complete` modes) to catch unfinished output.

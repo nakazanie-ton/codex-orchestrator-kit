@@ -214,6 +214,8 @@ run_surface_smoke_checks() {
   assert_file "$target_repo/scripts/codex_task.sh"
   assert_file "$target_repo/scripts/codex_task_lint.sh"
   assert_file "$target_repo/.local_codex/SESSION_PRIMER.md"
+  assert_grep 'scripts/codex_task\.sh' "$target_repo/.local_codex/SESSION_PRIMER.md" "session primer missing taskflow bootstrap routing"
+  assert_grep 'scripts/codex_task_lint\.sh --latest --mode complete' "$target_repo/.local_codex/SESSION_PRIMER.md" "session primer missing taskflow lint routing"
 
   # Bootstrap output control surface.
   (

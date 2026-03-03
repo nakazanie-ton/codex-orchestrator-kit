@@ -16,6 +16,7 @@ This repository extracts the full "start Codex session -> generate local context
 - `.codex_bootstrap/bootstrap/generate_codex_state.py`
 - `.codex_bootstrap/config.json`
 - `.local_codex/AGENT_STATE.md`
+- `.local_codex/SESSION_PRIMER.md`
 
 ## Install Into Any Repo
 
@@ -68,6 +69,7 @@ Automatic context primer (enabled by default):
   - `CODEX_SESSION_PRIMER_TEXT` (if set)
   - `.local_codex/SESSION_PRIMER.md` (if present)
   - built-in default primer
+- default primer also includes taskflow routing hints (`scripts/codex_task.sh`, `work/taskflow/*`, `scripts/codex_task_lint.sh`) when those scripts exist in repo
 - set `CODEX_SESSION_PRIME_CONTEXT=0` to disable
 
 ## Hook Integration
