@@ -34,15 +34,16 @@ DEFAULT_STARTUP_ORDER = [
 DEFAULT_EXCLUDE_PATHS = {
     ".git",
     "node_modules",
-    "frontend/node_modules",
     ".venv",
-    "frontend/.next",
-    "frontend/out",
-    "frontend/dist",
+    ".cache",
     ".pytest_cache",
     ".mypy_cache",
     ".ruff_cache",
-    ".cache",
+    "dist",
+    "build",
+    "out",
+    "target",
+    "coverage",
 }
 
 API_DECORATOR_PATTERN = re.compile(r"@router\.(get|post|put|delete|patch)\(")

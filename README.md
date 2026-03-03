@@ -70,6 +70,11 @@ Edit `.codex_bootstrap/config.json` in the target repository to define:
 - required files for checklist
 - required skills list
 
+Default template values are intentionally project-agnostic:
+- no preselected required skills
+- empty `entry_points` and `task_routing`
+- generic `exclude_paths` (not tied to a specific backend/frontend stack)
+
 ## Extract As Separate GitHub Repo
 
 If this kit is currently vendored inside another repository:
