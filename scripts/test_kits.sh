@@ -186,7 +186,7 @@ EOF
   fi
 
   git -C "$dry_run_repo" init -q
-  bash "$ROOT_DIR/scripts/one_click_install.sh" --target "$dry_run_repo" --dry-run >"$dry_run_repo/dry-run.log"
+  bash "$ROOT_DIR/scripts/one_click_install.sh" "$dry_run_repo" --dry-run >"$dry_run_repo/dry-run.log"
   if [[ -e "$dry_run_repo/scripts/codex_bootstrap.sh" ]]; then
     fail "one_click_install --dry-run unexpectedly wrote files"
   fi

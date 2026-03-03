@@ -11,9 +11,11 @@ usage() {
   cat <<'USAGE'
 Usage:
   bash scripts/one_click_install.sh --target /absolute/path/to/target-repo [--dry-run] [--backup] [--no-force]
+  bash scripts/one_click_install.sh /absolute/path/to/target-repo [--dry-run] [--backup] [--no-force]
 
 Options:
   --target   Absolute path to target repository root
+            (legacy positional target is also accepted for compatibility)
   --dry-run  Preview installation and normalization actions without writing files
   --backup   Backup overwritten files/config under .codex_install_backups/
   --no-force Do not overwrite files that already exist in target repo
@@ -54,7 +56,14 @@ while (( $# > 0 )); do
       exit 0
       ;;
     *)
-      fail "unknown argument: $1"
+      if [[ "$1" == --* ]]; then
+        fail "unknown argument: $1"
+      fi
+      if [[ "$TARGET_SET" -eq 1 ]]; then
+        fail "target was provided more than once"
+      fi
+      TARGET="$1"
+      TARGET_SET=1
       ;;
   esac
   shift || true
