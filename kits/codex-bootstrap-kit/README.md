@@ -62,6 +62,14 @@ If both env vars are set, `CODEX_SESSION_SH` takes precedence.
 bash scripts/codex_session.sh codex --help
 ```
 
+Automatic context primer (enabled by default):
+- `CODEX_SESSION_PRIME_CONTEXT=1` appends a first prompt to `codex` sessions
+- primer source order:
+  - `CODEX_SESSION_PRIMER_TEXT` (if set)
+  - `.local_codex/SESSION_PRIMER.md` (if present)
+  - built-in default primer
+- set `CODEX_SESSION_PRIME_CONTEXT=0` to disable
+
 ## Hook Integration
 
 ```bash

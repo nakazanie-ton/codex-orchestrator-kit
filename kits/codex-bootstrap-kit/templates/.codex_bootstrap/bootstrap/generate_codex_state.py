@@ -388,6 +388,7 @@ def build_state_json(
         "goal": "Codex memory bootstrap and structure persistence",
         "state_files": [
             ".local_codex/AGENT_STATE.md",
+            ".local_codex/SESSION_PRIMER.md",
             ".local_codex/PROJECT_AGENT_STATE.json",
             ".local_codex/PROJECT_TREE.txt",
             ".local_codex/PROJECT_NAVIGATION.md",

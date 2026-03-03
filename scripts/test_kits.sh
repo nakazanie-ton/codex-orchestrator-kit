@@ -202,7 +202,7 @@ EOF
 run_surface_smoke_checks() {
   log "Running surface smoke checks (CLI / Codex App / Agent Skills)"
 
-  local target_repo cli_cmd task_json
+  local target_repo cli_cmd task_json codex_prime_dir
   target_repo="$(mktemp -d /tmp/codex-surface-smoke.XXXXXX)"
   TMP_PATHS+=("$target_repo")
   git -C "$target_repo" init -q
@@ -213,6 +213,7 @@ run_surface_smoke_checks() {
   assert_file "$target_repo/scripts/codex_verify_session.sh"
   assert_file "$target_repo/scripts/codex_task.sh"
   assert_file "$target_repo/scripts/codex_task_lint.sh"
+  assert_file "$target_repo/.local_codex/SESSION_PRIMER.md"
 
   # Bootstrap output control surface.
   (
@@ -227,6 +228,33 @@ run_surface_smoke_checks() {
   if [[ -s "$target_repo/bootstrap-quiet.out" ]]; then
     fail "quiet log level unexpectedly emitted stdout"
   fi
+
+  # Session primer surface: codex session should inject first prompt by default.
+  codex_prime_dir="$(mktemp -d /tmp/codex-prime-bin.XXXXXX)"
+  TMP_PATHS+=("$codex_prime_dir")
+  cat >"$codex_prime_dir/codex" <<'EOF'
+#!/usr/bin/env bash
+echo "ARGC:$#"
+echo "ARG1:${1:-}"
+EOF
+  chmod +x "$codex_prime_dir/codex"
+
+  (
+    cd "$target_repo"
+    CODEX_BOOTSTRAP_LOG_LEVEL=quiet \
+    CODEX_SESSION_CMD="$codex_prime_dir/codex" \
+    CODEX_SESSION_PRIMER_TEXT="PRIMER_TOKEN_X1" \
+    bash scripts/codex_session.sh >"$target_repo/primer-on.out" 2>"$target_repo/primer-on.err"
+
+    CODEX_BOOTSTRAP_LOG_LEVEL=quiet \
+    CODEX_SESSION_CMD="$codex_prime_dir/codex" \
+    CODEX_SESSION_PRIME_CONTEXT=0 \
+    CODEX_SESSION_PRIMER_TEXT="PRIMER_TOKEN_X1" \
+    bash scripts/codex_session.sh >"$target_repo/primer-off.out" 2>"$target_repo/primer-off.err"
+  )
+  assert_grep '^ARGC:1$' "$target_repo/primer-on.out" "session primer did not pass prompt argument by default"
+  assert_grep '^ARG1:PRIMER_TOKEN_X1$' "$target_repo/primer-on.out" "session primer text mismatch"
+  assert_grep '^ARGC:0$' "$target_repo/primer-off.out" "session primer disable flag did not suppress injected prompt"
 
   # CLI surface: run session with executable path containing spaces.
   cli_cmd="/tmp/codex cli smoke shim.sh"

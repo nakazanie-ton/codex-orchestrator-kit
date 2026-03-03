@@ -24,10 +24,11 @@ Without a standard bootstrap/taskflow layer, teams usually hit the same issues:
 ## How It Solves It
 1. Install unified kit artifacts into target repos.
 2. Bootstrap local state snapshots and checklist status before work.
-3. Verify freshness/integrity gates (`status: PASS`) before session/taskflow.
-4. Generate structured task artifacts (intake -> handoff).
-5. Lint artifacts (`scaffold`/`complete` modes) to catch unfinished output.
-6. Keep local generated files out of git with managed `.gitignore` blocks.
+3. Auto-prime Codex sessions with a first prompt that loads `.local_codex/*` context files.
+4. Verify freshness/integrity gates (`status: PASS`) before session/taskflow.
+5. Generate structured task artifacts (intake -> handoff).
+6. Lint artifacts (`scaffold`/`complete` modes) to catch unfinished output.
+7. Keep local generated files out of git with managed `.gitignore` blocks.
 
 ## Analogues And Tradeoffs
 Common alternatives:

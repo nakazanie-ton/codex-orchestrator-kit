@@ -180,6 +180,7 @@ FILES=(
   ".codex_bootstrap/bootstrap/generate_codex_state.py"
   ".codex_bootstrap/config.json"
   ".local_codex/AGENT_STATE.md"
+  ".local_codex/SESSION_PRIMER.md"
 )
 
 for rel in "${FILES[@]}"; do
