@@ -44,8 +44,11 @@ bash scripts/codex_session.sh
 ```
 
 Resolution order:
-- `CODEX_SESSION_CMD` env var (if set)
+- `CODEX_SESSION_SH` env var (full shell command string; evaluated by `bash -lc`)
+- `CODEX_SESSION_CMD` env var (single executable path/name, including paths with spaces)
 - `codex` (default)
+
+If both env vars are set, `CODEX_SESSION_SH` takes precedence.
 
 `scripts/codex_session.sh` also accepts an explicit command and arguments:
 

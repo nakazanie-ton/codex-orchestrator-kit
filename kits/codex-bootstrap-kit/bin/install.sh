@@ -58,20 +58,21 @@ ensure_gitignore_block() {
   local start_marker="# >>> codex-bootstrap-kit (local-only)"
   local end_marker="# <<< codex-bootstrap-kit (local-only)"
   local tmp_file
+  local managed_regex='^(\.local_codex/|\.codex_bootstrap/|\.githooks/pre-commit|scripts/codex_bootstrap\.sh|scripts/codex_session\.sh|scripts/codex_verify_session\.sh|scripts/git_pre_commit_sync\.sh|scripts/install_git_hooks\.sh)$'
 
   if [[ ! -f "$gitignore_file" ]]; then
     touch "$gitignore_file"
   fi
 
-  if grep -Fq "$start_marker" "$gitignore_file"; then
-    tmp_file="$(mktemp)"
-    awk -v start="$start_marker" -v end="$end_marker" '
-      $0 == start {inside=1; next}
-      $0 == end {inside=0; next}
-      !inside {print}
-    ' "$gitignore_file" > "$tmp_file"
-    mv "$tmp_file" "$gitignore_file"
-  fi
+  # Normalize by removing any previous managed markers/entries first.
+  # This is resilient even when older installs left malformed marker pairs.
+  tmp_file="$(mktemp)"
+  awk -v start="$start_marker" -v end="$end_marker" -v managed_regex="$managed_regex" '
+    $0 == start || $0 == end {next}
+    $0 ~ managed_regex {next}
+    {print}
+  ' "$gitignore_file" > "$tmp_file"
+  mv "$tmp_file" "$gitignore_file"
 
   {
     printf "\n%s\n" "$start_marker"
