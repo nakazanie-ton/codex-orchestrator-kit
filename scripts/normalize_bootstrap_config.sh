@@ -30,25 +30,13 @@ fail() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VALIDATOR_SCRIPT="$SCRIPT_DIR/validate_json.sh"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+CONTRACTS_SCRIPT="$SCRIPT_DIR/kit_config_contracts.sh"
+TEMPLATE_CONFIG="$REPO_ROOT/kits/codex-bootstrap-kit/templates/.codex_bootstrap/config.json"
 
 validate_bootstrap_config() {
   local config_file="$1"
-  bash "$VALIDATOR_SCRIPT" \
-    --file "$config_file" \
-    --required project_name \
-    --required required_skills \
-    --required startup_read_order \
-    --required required_files \
-    --required exclude_paths \
-    --required entry_points \
-    --required task_routing \
-    --type project_name:string \
-    --type required_skills:array \
-    --type startup_read_order:array \
-    --type required_files:array \
-    --type exclude_paths:array \
-    --type entry_points:object \
-    --type task_routing:object
+  validate_bootstrap_config_file "$VALIDATOR_SCRIPT" "$config_file"
 }
 
 while (( $# > 0 )); do
@@ -111,6 +99,17 @@ if [[ ! -x "$VALIDATOR_SCRIPT" ]]; then
   fail "validator script is missing or not executable: $VALIDATOR_SCRIPT"
 fi
 
+if [[ ! -f "$CONTRACTS_SCRIPT" ]]; then
+  fail "config contracts script not found: $CONTRACTS_SCRIPT"
+fi
+
+if [[ ! -f "$TEMPLATE_CONFIG" ]]; then
+  fail "bootstrap template config not found: $TEMPLATE_CONFIG"
+fi
+
+# shellcheck source=/dev/null
+source "$CONTRACTS_SCRIPT"
+
 if [[ "$CHECK_ONLY" -eq 1 && "$DRY_RUN" -eq 1 ]]; then
   fail "--check cannot be used together with --dry-run"
 fi
@@ -138,69 +137,7 @@ if [[ "$BACKUP" -eq 1 ]]; then
   echo "[orchestrator] backup: .codex_bootstrap/config.json -> ${BACKUP_PATH#"$TARGET"/}"
 fi
 
-cat >"$CONFIG_PATH" <<'JSON'
-{
-  "project_name": "",
-  "required_skills": [],
-  "startup_read_order": [
-    "scripts/codex_bootstrap.sh",
-    ".local_codex/CODEX_LOCAL_CHECKLIST.md",
-    "AGENTS.md",
-    ".local_codex/PROJECT_AGENT_STATE.json",
-    ".local_codex/PROJECT_NAVIGATION.md",
-    ".local_codex/PROJECT_DEPENDENCY_GRAPH.md",
-    ".local_codex/PROJECT_TREE.txt"
-  ],
-  "required_files": [
-    ".local_codex/AGENT_STATE.md",
-    ".local_codex/PROJECT_AGENT_STATE.json",
-    ".local_codex/PROJECT_TREE.txt",
-    ".local_codex/PROJECT_NAVIGATION.md",
-    ".local_codex/PROJECT_DEPENDENCY_GRAPH.md"
-  ],
-  "exclude_paths": [
-    ".git",
-    ".hg",
-    ".svn",
-    "node_modules",
-    ".pnpm-store",
-    ".yarn",
-    ".turbo",
-    ".parcel-cache",
-    ".venv",
-    "venv",
-    "env",
-    ".direnv",
-    ".tox",
-    ".nox",
-    "__pypackages__",
-    ".eggs",
-    ".ipynb_checkpoints",
-    ".next",
-    ".nuxt",
-    ".svelte-kit",
-    ".terraform",
-    ".terragrunt-cache",
-    ".serverless",
-    ".aws-sam",
-    ".idea",
-    ".vscode",
-    ".gradle",
-    ".dart_tool",
-    ".cache",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    "dist",
-    "build",
-    "out",
-    "target",
-    "coverage"
-  ],
-  "entry_points": {},
-  "task_routing": {}
-}
-JSON
+cp "$TEMPLATE_CONFIG" "$CONFIG_PATH"
 
 validate_bootstrap_config "$CONFIG_PATH"
 echo "[orchestrator] applied project-agnostic bootstrap config: $CONFIG_PATH"

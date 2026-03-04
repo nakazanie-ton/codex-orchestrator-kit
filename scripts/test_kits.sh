@@ -4,6 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_PATHS=()
 VALIDATE_JSON_SCRIPT="$ROOT_DIR/scripts/validate_json.sh"
+CONTRACTS_SCRIPT="$ROOT_DIR/scripts/kit_config_contracts.sh"
+if [[ ! -f "$CONTRACTS_SCRIPT" ]]; then
+  echo "[test-kits] ERROR: config contracts script not found: $CONTRACTS_SCRIPT" >&2
+  exit 1
+fi
+
+# shellcheck source=/dev/null
+source "$CONTRACTS_SCRIPT"
 
 log() {
   echo "[test-kits] $1"
@@ -65,35 +73,13 @@ run_shell_and_json_gates() {
     log "shellcheck not found; skipping shellcheck gate"
   fi
 
-  bash "$VALIDATE_JSON_SCRIPT" \
-    --file "$ROOT_DIR/kits/codex-bootstrap-kit/templates/.codex_bootstrap/config.json" \
-    --required project_name \
-    --required required_skills \
-    --required startup_read_order \
-    --required required_files \
-    --required exclude_paths \
-    --required entry_points \
-    --required task_routing \
-    --type project_name:string \
-    --type required_skills:array \
-    --type startup_read_order:array \
-    --type required_files:array \
-    --type exclude_paths:array \
-    --type entry_points:object \
-    --type task_routing:object
+  validate_bootstrap_config_file \
+    "$VALIDATE_JSON_SCRIPT" \
+    "$ROOT_DIR/kits/codex-bootstrap-kit/templates/.codex_bootstrap/config.json"
 
-  bash "$VALIDATE_JSON_SCRIPT" \
-    --file "$ROOT_DIR/kits/codex-taskflow-kit/templates/.codex_taskflow/config.json" \
-    --required workflow_name \
-    --required version \
-    --required out_dir \
-    --required steps \
-    --required artifacts \
-    --type workflow_name:string \
-    --type version:string \
-    --type out_dir:string \
-    --type steps:array \
-    --type artifacts:object
+  validate_taskflow_config_file \
+    "$VALIDATE_JSON_SCRIPT" \
+    "$ROOT_DIR/kits/codex-taskflow-kit/templates/.codex_taskflow/config.json"
 }
 
 run_python_compile_gates() {
@@ -181,6 +167,11 @@ EOF
   sleep 1
   bash "$ROOT_DIR/scripts/normalize_bootstrap_config.sh" --target "$backup_repo" --backup >/dev/null
   assert_grep '"project_name":[[:space:]]*""' "$backup_repo/.codex_bootstrap/config.json" "normalize script did not rewrite config"
+  if ! cmp -s \
+    "$backup_repo/.codex_bootstrap/config.json" \
+    "$ROOT_DIR/kits/codex-bootstrap-kit/templates/.codex_bootstrap/config.json"; then
+    fail "normalize script output diverges from bundled bootstrap template config"
+  fi
   config_backup_count="$(find "$backup_repo/.codex_install_backups/codex-bootstrap-kit" -type f -path '*/.codex_bootstrap/config.json' | wc -l | tr -d ' ')"
   if [[ "$config_backup_count" -lt 2 ]]; then
     fail "expected config backups from installer + normalize step, found $config_backup_count"
