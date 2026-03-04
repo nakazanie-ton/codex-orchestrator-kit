@@ -295,6 +295,121 @@ if f"- Root: {repo_root}" not in text:
 PY
 }
 
+run_context_budget_compaction_checks() {
+  log "Running context budget compaction checks"
+
+  local compact_repo no_compact_repo threshold_repo archive_run
+  local threshold_state threshold_taskflow threshold_history threshold_actual_total threshold_inflated_total threshold_budget
+  compact_repo="$(mktemp -d /tmp/codex-context-compact-test.XXXXXX)"
+  no_compact_repo="$(mktemp -d /tmp/codex-context-no-compact-test.XXXXXX)"
+  threshold_repo="$(mktemp -d /tmp/codex-context-threshold-test.XXXXXX)"
+  TMP_PATHS+=("$compact_repo" "$no_compact_repo" "$threshold_repo")
+
+  git -C "$compact_repo" init -q
+  bash "$ROOT_DIR/kits/codex-bootstrap-kit/bin/install.sh" --target "$compact_repo" >/dev/null
+
+  mkdir -p "$compact_repo/.local_codex"
+  cat >"$compact_repo/.local_codex/PROJECT_TREE.txt" <<'EOF'
+old-tree-before-compact
+EOF
+  cat >"$compact_repo/.local_codex/PROJECT_NAVIGATION.md" <<'EOF'
+# Old navigation
+EOF
+  cat >"$compact_repo/.local_codex/PROJECT_DEPENDENCY_GRAPH.md" <<'EOF'
+# Old dependency graph
+EOF
+  cat >"$compact_repo/.local_codex/CODEX_LOCAL_CHECKLIST.md" <<'EOF'
+# Old checklist
+- status: FAIL
+EOF
+
+  (
+    cd "$compact_repo"
+    CODEX_CONTEXT_BUDGET_BYTES=1 \
+    CODEX_CONTEXT_AUTO_COMPACT=1 \
+    CODEX_BOOTSTRAP_LOG_LEVEL=quiet \
+    bash scripts/codex_bootstrap.sh
+  )
+
+  archive_run="$(find "$compact_repo/.local_codex/archive" -mindepth 1 -maxdepth 1 -type d -name 'context-*' | sort | tail -n 1)"
+  [[ -n "${archive_run:-}" ]] || fail "expected compacted context archive was not created"
+  assert_file "$archive_run/PROJECT_TREE.txt"
+  assert_file "$archive_run/CODEX_LOCAL_CHECKLIST.md"
+  assert_file "$compact_repo/.local_codex/CONTEXT_COMPACT.md"
+  assert_file "$compact_repo/.local_codex/CONTEXT_BUDGET.json"
+  assert_file "$compact_repo/.local_codex/SESSION_HISTORY.log"
+  assert_grep '^## AGENT_STATE Key Block$' "$compact_repo/.local_codex/CONTEXT_COMPACT.md" "context compact file missing AGENT_STATE section"
+  assert_grep '^- status: PASS$' "$compact_repo/.local_codex/CONTEXT_COMPACT.md" "context compact file missing verification PASS status"
+  assert_grep '"compacted":[[:space:]]*true' "$compact_repo/.local_codex/CONTEXT_BUDGET.json" "context budget report did not mark compacted=true"
+  assert_grep 'compacted=true' "$compact_repo/.local_codex/SESSION_HISTORY.log" "session history did not record compaction"
+
+  git -C "$no_compact_repo" init -q
+  bash "$ROOT_DIR/kits/codex-bootstrap-kit/bin/install.sh" --target "$no_compact_repo" >/dev/null
+
+  mkdir -p "$no_compact_repo/.local_codex"
+  cat >"$no_compact_repo/.local_codex/PROJECT_TREE.txt" <<'EOF'
+old-tree-no-compact
+EOF
+
+  (
+    cd "$no_compact_repo"
+    CODEX_CONTEXT_BUDGET_BYTES=1 \
+    CODEX_CONTEXT_AUTO_COMPACT=0 \
+    CODEX_BOOTSTRAP_LOG_LEVEL=quiet \
+    bash scripts/codex_bootstrap.sh
+  )
+
+  if [[ -d "$no_compact_repo/.local_codex/archive" ]] && \
+    find "$no_compact_repo/.local_codex/archive" -mindepth 1 -maxdepth 1 -type d -name 'context-*' | grep -q .; then
+    fail "context archive was created even though CODEX_CONTEXT_AUTO_COMPACT=0"
+  fi
+  assert_grep '"compacted":[[:space:]]*false' "$no_compact_repo/.local_codex/CONTEXT_BUDGET.json" "context budget report did not mark compacted=false"
+
+  git -C "$threshold_repo" init -q
+  bash "$ROOT_DIR/kits/codex-bootstrap-kit/bin/install.sh" --target "$threshold_repo" >/dev/null
+
+  (
+    cd "$threshold_repo"
+    CODEX_BOOTSTRAP_LOG_LEVEL=quiet bash scripts/codex_bootstrap.sh
+    CODEX_BOOTSTRAP_LOG_LEVEL=quiet bash scripts/codex_bootstrap.sh
+  )
+
+  read -r threshold_state threshold_taskflow threshold_history < <(python3 - "$threshold_repo/.local_codex/CONTEXT_BUDGET.json" <<'PY'
+import json
+import pathlib
+import sys
+
+metrics = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(
+    metrics.get("state_bytes_after", 0),
+    metrics.get("taskflow_bytes_after", 0),
+    metrics.get("history_bytes_after", 0),
+)
+PY
+)
+  (( threshold_history >= 4 )) || fail "expected measurable history bytes after warm runs"
+
+  threshold_actual_total=$(( threshold_state + threshold_taskflow ))
+  threshold_inflated_total=$(( threshold_actual_total + threshold_history ))
+  threshold_budget=$(( threshold_actual_total + (threshold_history / 2) ))
+  (( threshold_budget > threshold_actual_total )) || fail "derived threshold budget must exceed actual total"
+  (( threshold_budget < threshold_inflated_total )) || fail "derived threshold budget must remain below inflated total"
+
+  (
+    cd "$threshold_repo"
+    CODEX_CONTEXT_BUDGET_BYTES="$threshold_budget" \
+    CODEX_CONTEXT_AUTO_COMPACT=1 \
+    CODEX_BOOTSTRAP_LOG_LEVEL=quiet \
+    bash scripts/codex_bootstrap.sh
+  )
+
+  if [[ -d "$threshold_repo/.local_codex/archive" ]] && \
+    find "$threshold_repo/.local_codex/archive" -mindepth 1 -maxdepth 1 -type d -name 'context-*' | grep -q .; then
+    fail "context archive was created when budget exceeded only by previously double-counted history bytes"
+  fi
+  assert_grep '"compacted":[[:space:]]*false' "$threshold_repo/.local_codex/CONTEXT_BUDGET.json" "context budget report unexpectedly marked compacted=true near threshold"
+}
+
 run_nested_exclude_checks() {
   log "Running nested exclude checks"
 
@@ -491,6 +606,7 @@ run_surface_smoke_checks() {
   assert_file "$target_repo/scripts/codex_task.sh"
   assert_file "$target_repo/scripts/codex_task_lint.sh"
   assert_file "$target_repo/.local_codex/SESSION_PRIMER.md"
+  assert_grep 'CONTEXT_COMPACT\.md' "$target_repo/.local_codex/SESSION_PRIMER.md" "session primer missing compact context guidance"
   assert_grep 'scripts/codex_task\.sh' "$target_repo/.local_codex/SESSION_PRIMER.md" "session primer missing taskflow bootstrap routing"
   assert_grep 'scripts/codex_task_lint\.sh --latest --mode complete' "$target_repo/.local_codex/SESSION_PRIMER.md" "session primer missing taskflow lint routing"
   assert_grep 'git ls-files --cached --others --exclude-standard' "$target_repo/.local_codex/SESSION_PRIMER.md" "session primer missing tree indexing guardrails"
@@ -620,6 +736,8 @@ run_docs_surface_checks() {
   assert_grep '--verify-max-age-seconds N' "$ROOT_DIR/README.md" "README missing verify max age guidance"
   assert_grep '\[LICENSE\]\(LICENSE\)' "$ROOT_DIR/README.md" "README missing LICENSE link"
   assert_grep '\[SECURITY\.md\]\(SECURITY\.md\)' "$ROOT_DIR/README.md" "README missing SECURITY link"
+  assert_grep 'CODEX_CONTEXT_BUDGET_BYTES' "$ROOT_DIR/kits/codex-bootstrap-kit/README.md" "bootstrap kit README missing context budget guidance"
+  assert_grep 'CONTEXT_COMPACT\.md' "$ROOT_DIR/kits/codex-bootstrap-kit/README.md" "bootstrap kit README missing compact context file guidance"
 }
 
 main() {
@@ -629,6 +747,7 @@ main() {
   run_non_destructive_mode_checks
   run_symlink_safety_checks
   run_bootstrap_state_refresh_checks
+  run_context_budget_compaction_checks
   run_nested_exclude_checks
   run_config_validation_checks
   run_tree_exclusion_checks

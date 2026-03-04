@@ -34,6 +34,17 @@ Bootstrap output can be tuned with `CODEX_BOOTSTRAP_LOG_LEVEL`:
 - `summary`: print checklist + loaded file names only
 - `quiet`: suppress non-error output
 
+Context budget + auto-compact (enabled by default):
+- `CODEX_CONTEXT_BUDGET_BYTES` (default `1048576`) sets soft session context budget.
+- `CODEX_CONTEXT_AUTO_COMPACT=1` archives previous context snapshots when budget is exceeded before regeneration.
+- `CODEX_CONTEXT_ARCHIVE_KEEP_RUNS` controls retained archived snapshots (default `8`).
+- `CODEX_CONTEXT_HISTORY_MAX_LINES` / `CODEX_CONTEXT_HISTORY_KEEP_LINES` control history compaction.
+- Generated helper files:
+  - `.local_codex/CONTEXT_COMPACT.md` (key AGENT_STATE + VERIFICATION blocks)
+  - `.local_codex/CONTEXT_BUDGET.json` (latest budget metrics)
+  - `.local_codex/SESSION_HISTORY.log` (compact run history)
+  - archived snapshots under `.local_codex/archive/`
+
 ## First Run In Target Repo
 
 ```bash
