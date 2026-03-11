@@ -200,6 +200,7 @@ EOF
   "startup_read_order": [
     "scripts/codex_bootstrap.sh",
     ".local_codex/CODEX_LOCAL_CHECKLIST.md",
+    "AGENTS.md",
     ".local_codex/PROJECT_AGENT_STATE.json",
     ".local_codex/PROJECT_NAVIGATION.md",
     ".local_codex/PROJECT_DEPENDENCY_GRAPH.md"
@@ -706,8 +707,24 @@ EOF
   if [[ "$(tr -d '\r\n' < "$target_repo/kit-update-enabled.target")" != "$target_repo" ]]; then
     fail "session auto-update did not pass target repo path to installer"
   fi
+  assert_grep '--no-force' "$target_repo/kit-update-enabled.args" "session auto-update missing safe preserve flag"
   assert_grep '--skip-normalize' "$target_repo/kit-update-enabled.args" "session auto-update missing --skip-normalize"
   assert_grep '--skip-verify' "$target_repo/kit-update-enabled.args" "session auto-update missing --skip-verify"
+
+  (
+    cd "$target_repo"
+    CODEX_BOOTSTRAP_LOG_LEVEL=quiet \
+    CODEX_SESSION_CMD="$cli_cmd" \
+    CODEX_SESSION_PRIME_CONTEXT=0 \
+    CODEX_KIT_SOURCE_REPO="$kit_source_repo" \
+    CODEX_KIT_AUTO_UPDATE_FORCE=1 \
+    CODEX_KIT_TEST_LOG="$target_repo/kit-update-force" \
+    bash scripts/codex_session.sh >"$target_repo/kit-update-force.out" 2>"$target_repo/kit-update-force.err"
+  )
+  assert_file "$target_repo/kit-update-force.args"
+  if grep -Eq -- '--no-force' "$target_repo/kit-update-force.args"; then
+    fail "session auto-update force mode unexpectedly preserved existing files"
+  fi
 
   (
     cd "$target_repo"
@@ -729,12 +746,22 @@ EOF
     CODEX_BOOTSTRAP_REQUIRED=1 bash scripts/codex_verify_session.sh --quiet
     bash scripts/codex_verify_session.sh --skip-bootstrap --quiet
   )
+  set +e
+  (
+    cd "$target_repo"
+    bash scripts/codex_task.sh >"$target_repo/taskflow-empty.out" 2>"$target_repo/taskflow-empty.err"
+  )
+  local empty_task_status=$?
+  set -e
+  [[ "$empty_task_status" -ne 0 ]] || fail "taskflow unexpectedly allowed an empty task request"
+  assert_grep 'Task input required' "$target_repo/taskflow-empty.err" "taskflow empty-input failure did not explain how to provide task text"
   task_json="$(
     cd "$target_repo"
     bash scripts/codex_task.sh --title "Codex App Smoke" --text "Validate codex app surface" --json-path-only | tail -n 1
   )"
   task_json="$(echo "$task_json" | tr -d '\r')"
   assert_file "$task_json"
+  assert_file "$target_repo/scripts/codex_task_from_clipboard.sh"
 
   (
     cd "$target_repo"
@@ -783,6 +810,32 @@ missing = [item for item in required if item not in order]
 if missing:
     raise SystemExit("missing startup_read_order entries: " + ", ".join(missing))
 PY
+
+  python3 - "$target_repo/.local_codex/PROJECT_AGENT_STATE.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    data = json.load(fh)
+
+order = data.get("navigation", {}).get("startup_read_order", [])
+data["navigation"]["startup_read_order"] = [item for item in order if item != "AGENTS.md"]
+
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh, ensure_ascii=True, indent=2)
+    fh.write("\n")
+PY
+
+  set +e
+  (
+    cd "$target_repo"
+    bash scripts/codex_verify_session.sh --skip-bootstrap --quiet >"$target_repo/verify-agents-order.out" 2>"$target_repo/verify-agents-order.err"
+  )
+  local verify_agents_order_status=$?
+  set -e
+  [[ "$verify_agents_order_status" -ne 0 ]] || fail "verify unexpectedly passed when AGENTS.md was removed from startup_read_order"
+  assert_grep 'startup_read_order contract failed' "$target_repo/verify-agents-order.err" "verify missing startup_read_order failure for AGENTS contract drift"
 }
 
 run_docs_surface_checks() {
@@ -798,6 +851,8 @@ run_docs_surface_checks() {
   assert_grep '\[SECURITY\.md\]\(SECURITY\.md\)' "$ROOT_DIR/README.md" "README missing SECURITY link"
   assert_grep 'CODEX_CONTEXT_BUDGET_BYTES' "$ROOT_DIR/kits/codex-bootstrap-kit/README.md" "bootstrap kit README missing context budget guidance"
   assert_grep 'CONTEXT_COMPACT\.md' "$ROOT_DIR/kits/codex-bootstrap-kit/README.md" "bootstrap kit README missing compact context file guidance"
+  assert_grep 'CODEX_KIT_AUTO_UPDATE_FORCE' "$ROOT_DIR/kits/codex-bootstrap-kit/README.md" "bootstrap kit README missing safe auto-update guidance"
+  assert_grep 'codex_task_from_clipboard\.sh' "$ROOT_DIR/kits/codex-taskflow-kit/README.md" "taskflow kit README missing clipboard helper guidance"
 }
 
 main() {

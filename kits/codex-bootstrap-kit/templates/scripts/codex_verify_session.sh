@@ -139,6 +139,7 @@ import sys
 required = [
     "scripts/codex_bootstrap.sh",
     ".local_codex/CODEX_LOCAL_CHECKLIST.md",
+    "AGENTS.md",
     ".local_codex/PROJECT_AGENT_STATE.json",
     ".local_codex/PROJECT_NAVIGATION.md",
     ".local_codex/PROJECT_DEPENDENCY_GRAPH.md",
